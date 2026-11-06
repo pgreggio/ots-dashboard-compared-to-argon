@@ -350,8 +350,7 @@ function drawHead(){
     $('head').innerHTML = `
       <div class="kicker">Overview</div>
       <h1>Consolidated results</h1>
-      <p class="lede">Every dashboard's rubric checks added up per version: ${DATA.length} dashboards · ${versions.size} versions.
-        Click a dashboard or a score to open it.</p>`;
+      <p class="lede">${DATA.length} dashboards · ${versions.size} versions. Click a dashboard to open it.</p>`;
     return;
   }
   const g = DATA[state.game];
