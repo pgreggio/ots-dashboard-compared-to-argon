@@ -665,15 +665,15 @@ function drawCover(){
 
   $('cover').innerHTML = `
     <section class="sec">
-      <div class="rubric-h"><h2>By version</h2><span>All dashboards combined</span></div>
+      <div class="rubric-h"><h2>By version</h2></div>
       <div class="tiles">${tiles}</div>
     </section>
     <section class="sec">
-      <div class="rubric-h"><h2>By dashboard</h2><span>Checks passed per version</span></div>
+      <div class="rubric-h"><h2>By dashboard</h2></div>
       <div class="table"><div class="table-in">${samples}</div></div>
     </section>
     <section class="sec">
-      <div class="rubric-h"><h2>By rubric tier</h2><span>Checks passed, summed over every dashboard</span></div>
+      <div class="rubric-h"><h2>By rubric tier</h2></div>
       <div class="table"><div class="table-in">${tiers}</div></div>
     </section>`;
   $('cover').querySelectorAll('.pick').forEach(b =>
