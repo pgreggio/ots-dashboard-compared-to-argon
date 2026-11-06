@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Directional Tab Swap</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script>tailwind.config = { corePlugins: { preflight: false } };</script>
+</head>
+<body class="m-0 bg-slate-950 p-6 font-sans text-slate-100">
+  <div role="tablist" aria-label="Forecast period" class="flex gap-4">
+    <button id="today" role="tab" aria-controls="forecast" aria-selected="false" tabindex="-1">Today</button>
+    <button id="three" role="tab" aria-controls="forecast" aria-selected="false" tabindex="-1">Next 3 days</button>
+    <button id="seven" role="tab" aria-controls="forecast" aria-selected="true">Next 7 days</button>
+  </div>
+  <section id="forecast" role="tabpanel" aria-labelledby="seven" tabindex="0" class="my-6 rounded-xl bg-slate-800 p-6">
+    <h2 id="heading">Next 7 days</h2>
+    <button id="drill">Explore tomorrow</button>
+  </section>
+  <button id="reset">Reset view</button>
+
+  <script type="module">
+    export const MOTION = Object.freeze({
+      ease: 'cubic-bezier(0.16,1,0.3,1)', gsapEase: 'expo.out',
+      distance: 24, blur: 4, exitMs: 200, enterMs: 420
+    });
+
+    export function directionalSwap(panelEls, direction, render) {
+      const panels = [...new Set(panelEls)];
+      const running = directionalSwap.running ??= new WeakMap();
+      // Capture visible values before cancelling an interrupted transition.
+      const from = panels.map(panel => {
+        const style = getComputedStyle(panel);
+        return { transform: style.transform, opacity: style.opacity, filter: style.filter };
+      });
+      new Set(panels.map(panel => running.get(panel)).filter(Boolean))
+        .forEach(swap => swap.cancel());
+      const preference = matchMedia('(prefers-reduced-motion: reduce)');
+      if (preference.matches || !panels.length || !panels.every(panel => typeof panel.animate === 'function')) {
+        render();
+        return Object.assign(Promise.resolve(true), { cancel() {} });
+      }
+
+      const sign = direction === 'right' ? 1 : -1;
+      const classes = ['transform-gpu', 'will-change-[transform,opacity,filter]'];
+      const added = panels.map(panel => classes.filter(name => !panel.classList.contains(name)));
+      let animations = [], settled = false, rendered = false, resolve;
+      const result = new Promise(done => { resolve = done; });
+      const cleanup = () => {
+        animations.forEach(animation => animation.cancel());
+        panels.forEach((panel, index) => {
+          panel.classList.remove(...added[index]);
+          if (running.get(panel) === result) running.delete(panel);
+        });
+        preference.removeEventListener('change', reduce);
+      };
+      const finish = completed => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(completed);
+      };
+      result.cancel = () => finish(false);
+      const reduce = () => {
+        if (!preference.matches || settled) return;
+        try { if (!rendered) { rendered = true; render(); } }
+        finally { finish(true); }
+      };
+      preference.addEventListener('change', reduce);
+      panels.forEach((panel, index) => {
+        panel.classList.add(...added[index]);
+        running.set(panel, result);
+      });
+      const exit = {
+        transform: `translate3d(${-sign * MOTION.distance}px,0,0)`,
+        opacity: 0, filter: `blur(${MOTION.blur}px)`
+      };
+      animations = panels.map((panel, index) => panel.animate([from[index], exit], {
+        duration: MOTION.exitMs, easing: 'ease-in', fill: 'both'
+      }));
+      Promise.all(animations.map(animation => animation.finished)).then(() => {
+        if (settled) return;
+        rendered = true;
+        render();
+        if (settled) return;
+        const outgoing = animations;
+        animations = panels.map(panel => panel.animate([
+          { transform: `translate3d(${sign * MOTION.distance}px,0,0)`, opacity: 0, filter: `blur(${MOTION.blur}px)` },
+          { transform: 'translate3d(0,0,0)', opacity: 1, filter: 'blur(0px)' }
+        ], { duration: MOTION.enterMs, easing: MOTION.ease, fill: 'both' }));
+        outgoing.forEach(animation => animation.cancel());
+        return Promise.all(animations.map(animation => animation.finished)).then(() => finish(true));
+      }).catch(error => {
+        finish(false);
+        if (error.name !== 'AbortError') console.error(error);
+      });
+      return result;
+    }
+
+    const tabs = [...document.querySelectorAll('[role="tab"]')];
+    const panels = [document.getElementById('forecast')];
+    let activeIndex = 2;
+    function show(index, direction) {
+      activeIndex = index;
+      return directionalSwap(panels, direction, () => {
+        tabs.forEach((tab, i) => {
+          tab.setAttribute('aria-selected', String(i === index));
+          tab.tabIndex = i === index ? 0 : -1;
+        });
+        panels[0].setAttribute('aria-labelledby', tabs[index].id);
+        document.getElementById('heading').textContent = tabs[index].textContent;
+      });
+    }
+    tabs.forEach((tab, index) => {
+      tab.addEventListener('click', () => show(index, index > activeIndex ? 'right' : 'left'));
+      tab.addEventListener('keydown', event => {
+        let next;
+        if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
+        else if (event.key === 'ArrowLeft') next = (index + tabs.length - 1) % tabs.length;
+        else if (event.key === 'Home') next = 0;
+        else if (event.key === 'End') next = tabs.length - 1;
+        else return;
+        event.preventDefault();
+        tabs[next].click();
+        tabs[next].focus();
+      });
+    });
+    document.getElementById('drill').addEventListener('click', () => directionalSwap(panels, 'right', () => {
+      document.getElementById('heading').textContent = 'Tomorrow, by the hour';
+    }));
+    document.getElementById('reset').addEventListener('click', () => show(2, 'left'));
+  </script>
+</body>
+</html>

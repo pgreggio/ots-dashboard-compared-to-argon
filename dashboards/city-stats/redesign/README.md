@@ -1,0 +1,218 @@
+# Urbanscope
+
+A responsive fictional-city explorer built with React, TypeScript, Vite, Tailwind CSS, and Three.js. A rounded, full-screen 3D city uses light sage surfaces, lime accents, and compact top navigation without a sidebar.
+
+## Development
+
+```sh
+npm install
+npm run dev
+```
+
+## Verification
+
+Use Node.js 24 or newer to run the data tests with native TypeScript support.
+
+```sh
+npm test
+npm run build
+npm run preview
+```
+
+Browser smoke tests cover the 3D scene, camera controls, district selection, mobile layout, view switching, and the non-WebGL fallback. Chromium's Linux system libraries must already be available. Browser binaries and temporary profiles stay inside the project:
+
+```sh
+PLAYWRIGHT_BROWSERS_PATH=./node_modules/.playwright-browsers npx playwright install chromium
+npm run test:browser
+```
+
+## Fictional Cities
+
+All cities, districts, boundaries, and statistics are fictional. Each city has exactly five districts, with complete synthetic snapshots for 2024, 2025, and 2026 in `src/city-data.ts`. No statistics are claimed to describe real people or places.
+
+| City | Districts |
+| --- | --- |
+| Verdant Bay | Harborfront, Fern Heights, Old Quarter, Meadowbank, South Quay |
+| Lumen City | Central Spire, Prism Park, Eastworks, Canal Gardens, Nova South |
+| Ashford | Riverside, Oakridge, Foundry District, University Hill, Willow Fields |
+
+## Statistics
+
+| Statistic | Definition |
+| --- | --- |
+| Population density | Residents per square kilometer of district land area. |
+| Average income | Mean annual personal income per adult resident, in nominal USD. |
+| Public transport commute share | Percentage of employed commuters using public transport as their main mode. |
+| Public transport stops | Stops per square kilometer of district land area. |
+| Average transit wait | Average weekday daytime wait for public transport, in minutes. |
+
+### 2026 Snapshot
+
+| City | District | Residents/km2 | Income (USD/year) | Transit share (%) | Stops/km2 | Wait (min) |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Verdant Bay | Harborfront | 8,450 | 58,700 | 54 | 13.5 | 6 |
+| Verdant Bay | Fern Heights | 2,590 | 83,400 | 28 | 5.4 | 12 |
+| Verdant Bay | Old Quarter | 11,900 | 51,600 | 66 | 20.2 | 4 |
+| Verdant Bay | Meadowbank | 4,680 | 53,800 | 40 | 8.8 | 9 |
+| Verdant Bay | South Quay | 6,750 | 46,700 | 49 | 11.7 | 7 |
+| Lumen City | Central Spire | 16,450 | 75,800 | 77 | 27.4 | 3 |
+| Lumen City | Prism Park | 5,480 | 96,200 | 44 | 10.6 | 7 |
+| Lumen City | Eastworks | 11,350 | 47,800 | 64 | 16.8 | 5 |
+| Lumen City | Canal Gardens | 7,790 | 60,800 | 55 | 13.0 | 6 |
+| Lumen City | Nova South | 7,720 | 58,800 | 54 | 12.4 | 6 |
+| Ashford | Riverside | 5,090 | 47,100 | 36 | 7.8 | 10 |
+| Ashford | Oakridge | 1,710 | 70,900 | 19 | 3.2 | 18 |
+| Ashford | Foundry District | 6,850 | 36,700 | 42 | 7.5 | 11 |
+| Ashford | University Hill | 9,260 | 42,300 | 57 | 12.3 | 6 |
+| Ashford | Willow Fields | 2,480 | 50,800 | 25 | 4.6 | 16 |
+
+## City Statistics
+
+The default foreground shows clickable cards for population density, average income, and public transport usage. Each opens an annual history and a five-district breakdown, and adds its metric layer without clearing other active layers. Use the Districts control to return to individual district cards.
+
+City summaries are explicitly labeled **unweighted averages across all five districts**, not area- or population-weighted city totals. The dataset does not include the land-area, adult-population, or commuter counts needed for weighted aggregation. Search, saved districts, and filters do not alter city summaries.
+
+- Density and income annual growth is `(selected-year average - previous-year average) / previous-year average * 100`.
+- Public transport annual change is the difference in commute share in **percentage points (pp)**, not relative percent growth or total passenger trips.
+- Annual comparisons always use the immediately preceding year, independently of the Compare control. Values are not rounded before calculating growth.
+- The first snapshot, 2024, has no prior-year data and does not show invented zero growth. Sparklines and history only include snapshots up to the selected year.
+- Directional indicators describe change, not whether higher density, income, or commute share is inherently desirable. All figures remain synthetic.
+
+## Monthly Trends
+
+Open a city statistic or a district's details to explore its monthly trend. Metric and year selectors, a dashed previous-year comparison line, and an annual snapshot growth indicator are included. Hover or tap a month for its estimate, the same month in the previous year, and its same-month year-over-year change. A keyboard-accessible month slider supports arrow keys, Home, and End; an expandable data table exposes all twelve estimates.
+
+The source dataset contains annual snapshots only. Monthly values are **illustrative month-end estimates generated by linear interpolation**, not observed monthly measurements. For a selected year, each successive month advances another twelfth of the way from the previous annual snapshot toward the selected annual snapshot, with December anchored exactly to the selected value. The previous-year line is generated using the same method. The earliest year, 2024, is a flat reference with no previous-year values or growth.
+
+- The annual growth badge is calculated from the annual snapshots and does not change when hovering over months.
+- Tooltip changes compare the same estimated month across years, not adjacent months.
+- Density and income changes are relative percentages; transport changes are percentage points.
+- Income estimates retain annual personal income units, USD/year. They are not monthly salary and are not divided by twelve.
+- The y-axis adapts to the displayed range and is explicitly labeled as scaled, rather than implying a zero-based chart.
+- City trends use all five districts' unweighted averages; district trends use the selected district's own snapshots.
+- Changing the chart metric does not alter the active heatmap layers. Changing its year updates the selected snapshot throughout the app.
+
+## Shared Snapshot Year
+
+The top-bar selector, city and district monthly charts, city comparison, and district-history selected-year control all use the same controlled year in the explorer. Changing any of them updates statistics, annual growth baselines, district ranking values and bars, map annotations, the spotlight, heatmap colors and intensity, chart values, and CSV exports together. The district-history baseline remains an independent comparison year.
+
+The latest available data year is the initial selection. Year changes preserve the camera, active layers, heatmap switch, and a selected district that still matches the new year's filters. Rankings recalculate against the selected year's city leader. Stale chart hover values reset when the chart context changes. A disabled heatmap stays neutral while its underlying selected-year scores advance; turning it back on uses that year, not the last colored snapshot.
+
+## Metric Layers
+
+Population density, average income, and public transport are independent toggles, allowing any combination of zero, one, two, or three active layers. The toolbar shows the active count, and Clear All restores natural building colors. District selection and filtered-district dimming remain separate visual feedback.
+
+The **Heatmap** switch independently toggles between metric-colored buildings and the neutral architectural model, hiding metric ground coloring at the same time. It preserves the selected layers, camera position, filters, district selection, statistics, and exported scores. Layers can be changed while heatmap coloring is off; switching it back on applies the current blend. The choice persists across city, year, and view changes for the current session. Turning Heatmap on with no active layers leaves the city neutral rather than inventing a metric selection.
+
+Each metric is min-max normalized as `(value - minimum) / (maximum - minimum)`, clamped to 0-1. A constant reference range contributes 0.5. Ranges come from all three cities, all five districts per city, and all 2024-2026 snapshots, not just the visible districts. They remain fixed across city, year, search, and filter changes.
+
+| Metric | Reference Minimum | Reference Maximum |
+| --- | ---: | ---: |
+| Population density | 1,600 residents/km2 | 16,450 residents/km2 |
+| Average income | USD 32,400/year | USD 96,200/year |
+| Public transport commute share | 14% | 77% |
+
+The combined score is the equal-weight arithmetic mean of active normalized values, displayed on a 0-100 scale and mapped continuously through the sage palette. Income does not dominate merely because its raw numbers are larger. A higher score means higher combined values, not a better city. With no active layers there is no score, rather than an invented zero.
+
+The 3D city updates instanced building colors and district surfaces without rebuilding geometry or resetting the camera. Tint intensity is `0.25 + normalized score * 0.55` when heatmap coloring is active, and zero when coloring is disabled or no layers are active. Both color and intensity use the selected year's statistics, with the same appearance calculation shared by 2D and 3D views. Selection highlighting and filtered-district dimming remain separate visual feedback. The ground-overlay control hides surfaces only; building metric colors remain active. The 2D map, tooltips, district focus, legend, and CSV export use the same combined score. Statistics and Compare retain raw units and do not silently replace the active layers.
+
+## District Selection
+
+Districts can be selected through the accessible district picker, 3D buildings and projected labels, 2D polygons and map labels, or district cards in any view. Selection opens the foreground row and scrolls its lime spotlight card into view, without replacing the city statistics cards.
+
+The spotlight shows the district's population density, average annual income, public transport commute share, transit stops per square kilometer, and average wait time for the selected year. The selected map annotation highlights in lime and shows the district's raw statistics. Three-dimensional annotations follow the camera; selected annotations take priority over overlapping labels.
+
+Selection stays synchronized across 3D, Map, and List views, and persists through year changes when the district still matches the current filters. Switching cities or excluding the district clears selection. The Heatmap switch preserves both selection and statistics. The district picker and native annotation buttons support keyboard interaction, and selection changes are announced to assistive technology.
+
+## District Ranking
+
+The foreground includes a searchable district ranking card, available in 3D, Map, and List views. Choose density, income, or transport to sort the current city's districts from highest to lowest using raw values and explicit units. The ranking metric follows the analysis metric used by charts and comparisons; it does not change active heatmap layers.
+
+- Bar width is `district value / highest value in the city * 100`, with zero-only data producing zero-width bars. Bars are not min-max stretched.
+- Case-insensitive ranking search and explorer filters narrow the displayed rows without rescaling bars or renumbering city-wide ranks. Equal values share a competition rank, with alphabetical ordering within a tie.
+- Annual change uses the immediately preceding snapshot. Density and income use relative percentages; transport uses percentage points. The first year shows `N/A` with a no-prior-year explanation rather than invented zero growth.
+- Selecting a row synchronizes the map, district picker, 3D annotation, and lime spotlight while keeping the ranking card and its local search available. Selection made elsewhere highlights the corresponding ranking row.
+- Ranking search does not filter the city or clear selection. If a selected district is outside the search results, the card offers to clear its local search. Explorer filters still apply.
+- Search resets when switching cities, while the metric choice follows the current analysis context. Keyboard activation, selected-row states, and result counts are exposed to assistive technology.
+
+## City Comparison
+
+The top-bar Compare control opens city comparison by default. Choose either of the other two fictional cities to see density, income, and public transport statistics beside the current city, including each city's own annual change.
+
+- Both cities use the same comparison year, metric, units, and unweighted five-district definitions. Explorer filters, searches, and saved-district selections do not alter these city-wide summaries.
+- The monthly chart overlays the current city in solid sage and the comparison city in dashed ochre, on one shared y-axis calculated from both series. It compares the same selected year, not a second city's previous year.
+- Metric controls update both comparison cities together. Year controls update both cities and the explorer's shared snapshot year. The month slider, hover/tap tooltip, and data table expose both cities' values for the same month.
+- Monthly lines remain explicitly labeled interpolated synthetic estimates. The first year has flat reference lines and no fabricated annual growth.
+- Comparison city and metric choices are local to the dialog. The year is shared with the explorer: changing it updates the underlying statistics, rankings, heatmap, and charts. The map city, filters, heatmap switch, active layers, and any district that still matches the new year's filters are preserved.
+- The District history tab preserves the existing year-over-year district comparison and its explorer-filter behavior. These controls continue to use the explorer's analysis metric and selected year.
+
+## Viewer Controls
+
+The view control switches between **3D city**, **2D map**, and List without changing the selected city, snapshot year, layers, heatmap switch, or district selection. The 2D schematic remains available on devices without WebGL.
+
+- Both map and 3D views have plus/minus zoom controls. Buttons disable at the limits: levels 1-5 in 2D and magnification 0.55-4 in 3D.
+- Reset orbit restores the initial 3D orbit angle, pan, and zoom, flushes residual damping, and pauses automatic rotation without clearing the selected district. `Home` on the canvas performs the same reset.
+- The fullscreen control expands the entire app so city/year controls, search, statistics, comparisons, and detail dialogs remain usable. Entering or leaving fullscreen resizes the existing view rather than rebuilding it.
+- Browsers with the Fullscreen API use native fullscreen. If the API is unavailable or denied, an in-app expanded viewport view is used and announced to assistive technology.
+- Exit using the fullscreen control or Escape. In expanded view, Escape first dismisses an open dialog, then exits the expanded view. Native browser exits are synchronized with the control state, and focus returns to the fullscreen control or the active dialog.
+- Fullscreen uses a compact search header. On small-height screens, the expanded app can scroll internally to keep its controls accessible. Page scrolling is restored when fullscreen ends.
+
+## CSV Export
+
+In **Compare**, choose the second city and use **Export selected cities** to download one CSV containing all five districts from each city for the shared selected year. The export preview shows the row count and year. Comparison exports ignore explorer search, saved-district restrictions, and district filters, just like the comparison statistics.
+
+The top-bar Export button retains its separate scope: only the current city's currently filtered districts. Both export paths use the same CSV generator and download helper.
+
+Each row includes city, district, year, population density (residents/km2), average annual personal income (USD), public transport commute share (%), transit stops per km2, average transit wait (minutes), a fictional-data label, active metric layers, and the combined normalized score. With no active layers, the score is blank rather than an invented zero. Files contain annual district snapshots, not interpolated monthly estimates.
+
+Filenames include the selected city IDs and year, for example `urbanscope-verdant-bay-ashford-2024-districts.csv`. Downloads use a UTF-8 BOM, CRLF line endings, quoted/escaped cells, and spreadsheet-formula protection for text fields. Duplicate city selections are deduplicated, temporary download links are removed, and Blob URLs are revoked after the download is started. The helper also works inside native fullscreen.
+
+## Motion & Accessibility
+
+GSAP provides staggered entrances for foreground and comparison cards, eased district-focus/reset/zoom camera transitions, smooth numeric values and ranking-bar widths, chart update fades, and heatmap color/opacity interpolation. Camera gestures interrupt automated transitions rather than fighting them. Successive value changes continue from the current visual value, while metric-unit changes snap to the new metric rather than counting between incompatible units.
+
+The app observes `prefers-reduced-motion` live, including changes made while it is open:
+
+- Cards remain fully visible without entrance translation or delays; CSS transitions and entrance animations are disabled.
+- Numeric values, bars, chart updates, and heatmap colors apply their final state immediately.
+- Automated camera moves snap to their destination, inertial camera damping is disabled, traffic remains static, and automatic orbit is unavailable.
+- Enabling reduced motion completes an active camera move and stops automatic rotation. Returning to normal motion does not automatically restart it.
+- Screen readers receive the final formatted metric immediately through separate nonanimated text. Data tables, hover readouts, calculations, and CSV exports never use interpolated counter values.
+- GSAP contexts, tweens, media-query subscriptions, and card observers are cleaned up when their components or views change. Removed cards have their entrance tweens cancelled.
+
+## Features
+
+- Large procedural Three.js city models with hundreds of buildings, varied rooftops, towers, apartment blocks, and low-rise neighborhoods.
+- Street grids with sidewalks, crossings, streetlights, animated traffic, a river, three arched bridges, boats, parks, and hundreds of trees.
+- Warm hemisphere lighting, directional daylight, soft shadow maps, and a restrained sage architectural-model palette.
+- Orbit, pan, wheel/pinch zoom, automatic orbit, camera reset, building/district picking, and district hover statistics.
+- Explicit 2D/3D view switching, bounded zoom controls, orbit reset, native fullscreen, and an expanded-view fallback.
+- District cards focus the 3D camera; indicator colors, year selection, and filters update the model without rebuilding its geometry.
+- Instanced geometry, cached shadow maps, capped pixel ratio and frame rate, offscreen rendering suspension, reduced-motion handling, and resource disposal on scene changes.
+- A lazy-loaded 3D view with schematic-map and list alternatives, including an explicit non-WebGL fallback.
+- City and year selection, indicator-colored district polygons, map zoom, and schematic background controls.
+- Independently toggled metric layers with normalized equal-weight blending and fixed reference ranges across cities and years.
+- An accessible, keyboard-operable Heatmap switch for neutral or metric-colored city views without clearing active layers.
+- Clickable city-level district averages with annual changes, historical sparklines, and detailed methodology.
+- Interactive monthly trend charts with metric/year selection, previous-year comparisons, hover/tap tooltips, a keyboard slider, and accessible data tables.
+- Search, district selection, compact-neighborhood and transit-friendly filters.
+- A searchable district ranking card with raw values, proportional bars, annual changes, stable city-wide ranks, and synchronized selection.
+- District cards and detail panels displaying all five statistics with units.
+- Map and list views, with district bookmarks persisted in local storage.
+- Year-to-year district comparisons; filters are evaluated against the statistics for each year. `N/A` indicates that a district does not meet the active filters for that year.
+- Side-by-side city statistics and overlaid monthly trends with a second-city selector, common axes, and a shared snapshot year.
+- CSV downloads for the current city's filtered districts or both comparison cities' complete district snapshots, including year, units, all five statistics, active layers, combined score, and a fictional-data label.
+- Responsive layouts, keyboard-accessible controls, modal focus management, and in-app help.
+- GSAP motion with staggered entrances, interruptible camera transitions, smooth metric updates, and live reduced-motion support.
+
+## City Controls
+
+- Drag with the primary mouse button or one finger to orbit the 3D city.
+- Right-drag or use two fingers to pan; scroll or pinch to zoom.
+- Focus the 3D canvas to use arrow-key panning, `+`/`-` zoom, and `Home` to reset.
+- Click a building, projected annotation, map label, or district card to select its district, or use the accessible district picker. The lime spotlight shows the selected district's statistics.
+- Use the play control for automatic orbit, metric toggles for building colors, the ground-overlay control for district surfaces, and the camera controls to reset or zoom.
+- Use the fullscreen icon next to the view selector to expand or restore the explorer; Escape exits fullscreen or expanded view.
+- Expand the district tray to browse all five districts, or switch to Map or List without WebGL.
+
+Models and maps use local schematic coordinates and do not represent real geography. City layouts are generated deterministically from city IDs and density statistics, while the 2D map uses a bundled SVG background. No map service, API key, or backend is required. Google Fonts and the illustrative profile photo from Unsplash require an internet connection.

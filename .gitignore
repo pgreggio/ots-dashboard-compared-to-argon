@@ -1,0 +1,4 @@
+# The generator: only needed to rebuild, not to view the page (it reads ../sample_dashboard.jsonl).
+build_dashboards.py
+
+.DS_Store

@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Revelo: Dashboards in Gemini 4 Argon &amp; Revelo Redesign OTS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0E0E0D; --panel:#171716; --sunk:#131312; --stage:#0A0A09; --hover:#232322;
+  --line:#2A2A28; --line-soft:#222221; --sel:#1C2236;
+  --text:#ECEBE7; --text-2:#DCDBD6; --text-3:#C4C3BE; --dim:#9A9993; --faint:#4A4945;
+  --accent:#7C9BFF; --accent-2:#A9BEFF;
+  --pass:#6FCB94; --pass-bg:#15301F; --mid:#C98A1A; --fail:#E0634B; --fail-fg:#F08A75; --fail-bg:#3A1C17;
+  --why-fg:#F2A193; --why-bg:#2A1714;
+  --ui:'Geist','Helvetica Neue',Arial,sans-serif;
+  --mono:'Geist Mono',ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font-family:var(--ui);font-size:14px;line-height:1.5;
+     -webkit-font-smoothing:antialiased;color-scheme:dark}
+button{font:inherit;color:inherit;cursor:pointer}
+a{color:var(--accent)} a:hover{color:var(--accent-2)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.page{min-height:100vh;display:flex;flex-direction:column}
+
+/* top bar */
+.bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 28px;
+     background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px}
+.logo{width:28px;height:28px;border-radius:7px;background:var(--text);color:var(--panel);
+      display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
+.brand b{font-weight:600;font-size:15px;letter-spacing:-.01em}
+.slash{color:var(--faint)}
+.sub{font-size:14px;color:#A9A8A2}
+
+.layout{display:flex;flex-wrap:wrap;flex:1;min-height:0}
+
+/* sidebar */
+.nav{flex:0 0 184px;max-width:100%;padding:20px 10px;background:var(--panel);
+     border-right:1px solid var(--line);display:flex;flex-direction:column;gap:2px}
+.layout.collapsed .nav{display:none}
+.nav-toggle{display:flex;align-items:center;justify-content:center;width:32px;height:32px;margin-left:-6px;padding:0;
+            border:1px solid transparent;border-radius:8px;background:none;color:var(--dim)}
+.nav-toggle:hover{background:var(--hover);color:var(--text)}
+.nav-h{padding:0 10px 8px;font-size:12px;font-weight:500;color:var(--dim);letter-spacing:.02em}
+.nav-item{display:block;width:100%;text-align:left;padding:8px 10px;border:0;border-radius:8px;
+          background:transparent;font-weight:500;font-size:13.5px;color:var(--text-3);
+          white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav-item:hover{background:var(--hover)}
+.nav-item.sel{background:var(--hover);color:var(--text)}
+
+/* main */
+.main{flex:999 1 560px;min-width:0;padding:32px 40px 64px}
+.wrap{max-width:1120px;width:100%;display:flex;flex-direction:column;gap:28px}
+/* with the menu hidden, the content (and the preview) grows into the freed space, up to the render width */
+.layout.collapsed .wrap{max-width:1600px}
+
+.head{display:flex;flex-direction:column;gap:12px}
+.kicker{font-size:12px;font-weight:500;color:var(--dim);letter-spacing:.02em}
+.head h1{margin:0;font-size:28px;font-weight:600;letter-spacing:-.025em;line-height:1.2}
+.prompt{display:flex;flex-direction:column;gap:6px;max-width:78ch}
+.label{font-size:12px;font-weight:500;color:var(--dim)}
+.ptext{margin:0;font-size:14.5px;line-height:1.6;color:var(--text-3);text-wrap:pretty;white-space:pre-wrap;
+       display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ptext.open{display:block}
+.link{align-self:flex-start;background:none;border:0;padding:0;font-size:13px;font-weight:500;color:var(--accent)}
+.link:hover{text-decoration:underline}
+
+/* version tabs */
+.tabs{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--line)}
+.tab{display:flex;align-items:center;gap:8px;padding:10px 14px;margin-bottom:-1px;border:0;
+     border-bottom:2px solid transparent;background:none;font-size:14px;font-weight:500;color:var(--dim)}
+.tab:hover{color:var(--text)}
+.tab.sel{color:var(--text);border-bottom-color:var(--accent)}
+.tab .sc{font-family:var(--mono);font-size:12px;font-weight:400;font-variant-numeric:tabular-nums}
+
+/* stage */
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.stage-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line)}
+.stage-id{display:flex;flex-direction:column;min-width:0;flex:1 1 200px}
+.stage-id b{font-weight:600;font-size:14px}
+.stage-id span{font-family:var(--mono);font-size:12px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tools{display:flex;gap:4px;flex-wrap:wrap}
+.tool{display:flex;align-items:center;justify-content:center;gap:6px;height:36px;min-width:36px;padding:0;
+      border:1px solid var(--line);border-radius:8px;background:var(--panel);font-size:13px;font-weight:500}
+.tool.text{padding:0 12px}
+.tool:hover{background:var(--hover)}
+.tool.on{background:var(--hover);border-color:#55544F}
+.tool:disabled{opacity:.4;cursor:not-allowed}
+.tool:disabled:hover{background:var(--panel)}
+.tool svg{display:block}
+
+.notes{padding:16px 20px;background:var(--sunk);border-bottom:1px solid var(--line);font-size:13.5px;color:var(--text-3)}
+.notes[hidden]{display:none}
+.notes h1{font-size:15px;margin:0 0 10px;color:var(--text)}
+.notes h2{font-size:13.5px;margin:16px 0 6px;color:var(--text)}
+.notes h3{font-size:13px;margin:14px 0 6px;color:var(--text)}
+.notes p,.notes ul,.notes ol{margin:0 0 10px;max-width:78ch}
+.notes ul,.notes ol{padding-left:20px}
+.notes li{margin:0 0 4px}
+.notes strong{color:var(--text);font-weight:600}
+.notes blockquote{margin:0 0 10px;padding:8px 12px;background:var(--panel);border-radius:8px;white-space:pre-wrap;max-width:78ch}
+.notes code{font-family:var(--mono);font-size:12px;background:var(--hover);padding:1px 5px;border-radius:4px}
+.notes hr{border:0;border-top:1px solid var(--line);margin:16px 0}
+
+.holder{width:100%;aspect-ratio:16/10;max-height:80vh;background:var(--stage);position:relative;overflow:hidden}
+.holder iframe{width:100%;height:100%;border:0;display:block;background:#fff}
+/* dashboards render 900px tall (1440px wide at 16:10) and shrink to the box, so they lay out as in a 1440 × 900 window */
+.holder iframe.scaled{position:absolute;left:50%;top:50%;width:var(--fw,1440px);height:900px;
+                      transform:translate(-50%,-50%) scale(var(--fit,1))}
+.holder:fullscreen{height:100%}
+.empty{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+       text-align:center;padding:24px}
+.empty b{color:#E8E7E3;font-size:14px;font-weight:500}
+.empty span{color:#9C9B95;font-size:13px}
+.empty code{font-family:var(--mono);font-size:12px;background:var(--hover);padding:1px 5px;border-radius:4px;color:var(--text)}
+
+/* rubric */
+.rubric{display:flex;flex-direction:column;gap:14px}
+.rubric-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.rubric-h h2{margin:0;font-size:18px;font-weight:600;letter-spacing:-.015em}
+.rubric-h span{font-size:13px;color:var(--dim)}
+.table{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow-x:auto}
+.table-in{min-width:640px}
+.grid{display:grid;align-items:stretch}
+.grid.hrow{border-bottom:1px solid var(--line)}
+.grid.r{border-top:1px solid var(--line-soft)}
+.grid.r:hover{background:#1B1B1A}
+/* header cells share the body cells' padding and divider, so the columns line up */
+.th{display:flex;align-items:center;justify-content:center;padding:12px 8px;text-align:center;
+    font-size:12px;font-weight:500;color:var(--dim);line-height:1.35;border-left:1px solid var(--line-soft)}
+.th:first-child{justify-content:flex-start;padding:12px 20px;text-align:left;border-left:0}
+.th.on{font-weight:600;color:var(--text);background:var(--sel)}
+.tier{padding:18px 20px 8px;font-size:12px;font-weight:600;color:var(--text);letter-spacing:.01em;
+      border-top:1px solid var(--line);background:var(--sunk)}
+.crit{padding:14px 20px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.crit .q{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.area{font-family:var(--mono);font-size:11.5px;color:#A9A8A2;background:var(--hover);border-radius:5px;padding:1px 7px}
+.desc{font-size:14px;color:var(--text-2)}
+.desc strong{color:var(--text);font-weight:600}
+.why{align-self:flex-start;font-size:13px;color:var(--why-fg);background:var(--why-bg);
+     border-radius:8px;padding:6px 12px;max-width:72ch}
+.why summary{display:flex;align-items:center;gap:8px;cursor:pointer;list-style:none;
+             font-size:12.5px;font-weight:500;user-select:none}
+.why summary::-webkit-details-marker{display:none}
+.why summary svg{flex:none}
+.why summary::after{content:'';width:0;height:0;margin-left:2px;border-left:4px solid currentColor;
+                    border-top:4px solid transparent;border-bottom:4px solid transparent;transition:transform .15s}
+.why[open]{align-self:stretch}
+.why[open] summary::after{transform:rotate(90deg)}
+.why summary:hover{text-decoration:underline}
+.why p{margin:6px 0 2px 22px}
+.cell{display:flex;align-items:center;justify-content:center;padding:12px 8px;border-left:1px solid var(--line-soft)}
+.cell.on{background:var(--sel)}
+.dot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;padding:0;border:0}
+.dot.y{background:var(--pass-bg);color:var(--pass)}
+.dot.n{background:var(--fail-bg);color:var(--fail-fg)}
+button.dot.n:hover{background:#4A2219}
+.u{color:#A5A49E;font-size:14px}
+.num{font-family:var(--mono);font-size:14px;font-weight:500}
+.num small{color:#8C8B85;font-size:12px}
+.tot-l{padding:12px 20px;font-size:13.5px;color:var(--text-3)}
+.tot-v{padding:12px 8px;text-align:center;font-size:13.5px;font-family:var(--mono);font-variant-numeric:tabular-nums;
+       border-left:1px solid var(--line-soft)}
+.tot-v.on{background:var(--sel)}
+.strong .tot-l{font-weight:600;color:var(--text)} .strong .tot-v{font-weight:600}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--dim)}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:50%;display:inline-block}
+
+/* overview: every sample's results added up per version */
+.wrap > [hidden]{display:none}
+.nav-sep{height:1px;background:var(--line);margin:10px 6px 12px}
+.lede{margin:0;font-size:14.5px;line-height:1.6;color:var(--text-3);max-width:78ch}
+.cover{display:flex;flex-direction:column;gap:36px}
+.sec{display:flex;flex-direction:column;gap:14px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;
+      display:flex;flex-direction:column;gap:8px;min-width:0}
+.tile-l{font-size:13px;font-weight:500;color:var(--text-3)}
+.tile-v{font-family:var(--mono);font-size:30px;font-weight:500;letter-spacing:-.03em;line-height:1.1;font-variant-numeric:tabular-nums}
+.tile-s{font-size:12.5px;color:var(--dim)}
+.meter{height:6px;border-radius:3px;background:var(--hover);overflow:hidden}
+.meter i{display:block;height:100%;border-radius:3px}
+.pct{margin-left:6px;font-size:12px;color:var(--dim)}
+button.crit{border:0;background:none;text-align:left;width:100%}
+button.crit:hover .desc{text-decoration:underline}
+.crit small{font-size:12.5px;color:var(--dim)}
+.score{border:0;background:none;padding:4px 8px;border-radius:6px;font-family:var(--mono);font-size:13.5px;
+       font-variant-numeric:tabular-nums}
+.score:hover{background:var(--hover)}
+
+/* design rationale: Argon's problem → the redesign's approach, then one card per decision */
+.rationale{display:flex;flex-direction:column;gap:16px}
+.ba{display:grid;grid-template-columns:minmax(0,1fr) 32px minmax(0,1fr);align-items:stretch}
+.ba-side{border-radius:14px;padding:16px 20px;display:flex;flex-direction:column;gap:6px;background:var(--panel);border:1px solid var(--line)}
+.ba-side p{margin:0;font-size:14.5px;line-height:1.55;color:var(--text-2);text-wrap:pretty}
+.ba-side.after{background:#14211A;border-color:#24402F}
+.ba-side.after p{color:var(--text);font-weight:500}
+.ba-k{font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+.ba-side.before .ba-k{color:var(--mid)}
+.ba-side.after .ba-k{color:var(--pass)}
+.ba-arrow{display:flex;align-items:center;justify-content:center;color:var(--faint)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px 14px;
+      display:flex;flex-direction:column;gap:12px;min-width:0}
+.card-h{display:flex;align-items:center;gap:10px}
+.card-h .n{font-family:var(--mono);font-size:12px;color:var(--dim)}
+.card-h h3{margin:0;font-size:15px;font-weight:600;letter-spacing:-.01em}
+.ft{display:flex;flex-direction:column;gap:4px;padding:10px 12px;background:var(--sunk);border-radius:10px}
+.ft span{display:flex;gap:10px;align-items:baseline;font-size:13.5px;line-height:1.4}
+.ft i{flex:none;width:62px;font-style:normal;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.ft .from{color:var(--dim)} .ft .from i{color:var(--mid)}
+.ft .to{color:var(--text)} .ft .to i{color:var(--pass)}
+.card > p{margin:0;font-size:13.5px;line-height:1.55;color:var(--text-3);text-wrap:pretty;flex:1}
+.card-f{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding-top:12px;border-top:1px solid var(--line-soft);
+        font-size:12px;color:var(--dim)}
+.card-f button{border:0;background:var(--hover);border-radius:5px;padding:2px 8px;font-size:12px;color:var(--text-3)}
+.card-f button:hover{color:var(--text);text-decoration:underline}
+.card-f .judg{border-radius:5px;padding:2px 8px;font-size:12px;color:var(--accent-2);background:var(--sel)}
+/* references: the redesign designer's inspiration notes, with links to the reference image and screen recording */
+.refs{display:flex;flex-direction:column;gap:14px}
+.refs-notes{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;
+            display:flex;flex-direction:column;gap:14px}
+.refs-notes p{margin:0;font-size:14.5px;line-height:1.6;color:var(--text-2);white-space:pre-wrap;text-wrap:pretty;max-width:78ch}
+.refs-links{display:flex;gap:8px;flex-wrap:wrap}
+.refs-links a{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 12px;border:1px solid var(--line);
+              border-radius:8px;font-size:13px;font-weight:500;color:var(--text);text-decoration:none}
+.refs-links a:hover{background:var(--hover);color:var(--text)}
+@media (max-width:700px){.ba{grid-template-columns:1fr}.ba-arrow{transform:rotate(90deg);height:32px}}
+.grid.r.flash{animation:flash 1.6s ease-out}
+@keyframes flash{from{background:var(--sel)}to{background:transparent}}
+@media (prefers-reduced-motion:reduce){.grid.r.flash{animation:none;background:var(--sel)}}
+
+@media (max-width:700px){
+  .bar{padding:12px 16px}
+  .nav{flex-basis:100%;border-right:0;border-bottom:1px solid var(--line);padding:16px}
+  .main{padding:24px 16px 48px}
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="bar">
+    <button class="nav-toggle" id="navtoggle" aria-controls="nav" aria-expanded="true"
+            aria-label="Hide dashboard menu" title="Hide dashboard menu (M)"></button>
+    <div class="brand"><div class="logo">R</div><b>Revelo</b></div>
+    <span class="slash" aria-hidden="true">/</span>
+    <span class="sub">Dashboards in Gemini 4 Argon &amp; Revelo Redesign OTS</span>
+  </header>
+
+  <div class="layout" id="layout">
+    <nav class="nav" id="nav" aria-label="Dashboards"></nav>
+
+    <main class="main">
+      <div class="wrap">
+        <section class="head" id="head"></section>
+        <section class="tabs" id="cards" role="tablist" aria-label="Versions"></section>
+
+        <section class="cover" id="cover" hidden></section>
+
+        <section class="stage" id="stage">
+          <div class="stage-bar" id="stagebar"></div>
+          <div class="notes" id="notes" hidden></div>
+          <div class="holder" id="holder"></div>
+        </section>
+
+        <section class="rationale" id="rationale"></section>
+
+        <section class="rubric" id="rubric"></section>
+
+        <section class="refs" id="refs"></section>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="dashboards.js"></script>
+<script src="rationale.js"></script>
+<script>
+const DATA  = window.DASHBOARDS || [];
+const OVERVIEW = -1;                                   // state.game on the cover page
+const state = { game:OVERVIEW, col:0, open:false, notes:false };
+
+const esc   = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const plain = s => esc(String(s ?? '').replace(/\*\*/g,''));
+const named = s => { const t = /^([^—]{1,60}?)\s+—\s+([\s\S]*)$/.exec(String(s ?? '').replace(/\*\*/g,''));
+                      return t ? `<strong>${esc(t[1])}</strong> — ${esc(t[2])}` : plain(s); };
+const cur   = () => DATA[state.game]?.versions?.[state.col];
+const $     = id => document.getElementById(id);
+
+const ICON = {
+  notes:  '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8 13h8M8 17h5"/>',
+  dl:     '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>',
+  reload: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
+  full:   '<path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>',
+  side:   '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>',
+  cube:   '<path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="m3 7 9 5 9-5"/><path d="M12 12v10"/>',
+  check:  '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+  x:      '<path d="M6 6l12 12M18 6 6 18"/>',
+  image:  '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 17-5-5-9 8"/>',
+  play:   '<circle cx="12" cy="12" r="9"/><path d="m10 8.5 5.5 3.5-5.5 3.5z"/>',
+  arrow:  '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>',
+  alert:  '<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.5"/>',
+};
+const svg = (name, size=15, sw=1.8, extra='') =>
+  `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${ICON[name]}</svg>`;
+
+/* ---------- scores, computed from marks ----------
+   Questions with `rating: true` take a 1–5 number; every other question is a
+   pass/fail check. null (or a missing mark) means "not scored yet". */
+function score(g, v){
+  const qs = g.questions || [], marks = v.marks || [];
+  const out = { passed:0, total:0, scored:false, tiers:{}, ratings:[] };
+  qs.forEach((q,i) => {
+    const m = marks[i];
+    if (m !== null && m !== undefined) out.scored = true;
+    if (q.rating){ if (typeof m === 'number') out.ratings.push(m); return; }
+    const t = out.tiers[q.tier] ||= [0,0];
+    t[1]++; out.total++;
+    if (m === true){ t[0]++; out.passed++; }
+  });
+  out.avg = out.ratings.length ? out.ratings.reduce((a,b) => a+b, 0) / out.ratings.length : null;
+  return out;
+}
+const scoreText = s => s.scored ? s.passed + '/' + s.total : '—';
+const ratio     = s => s.scored && s.total ? s.passed / s.total : null;
+const tone      = r => r === null ? 'var(--dim)' : r >= 1 ? 'var(--pass)' : r >= .5 ? 'var(--mid)' : 'var(--fail)';
+const pct       = (a, b) => b ? Math.round(a / b * 100) + '%' : '—';
+
+/* ---------- sidebar ---------- */
+function drawNav(){
+  $('nav').innerHTML = `<button class="nav-item ${state.game===OVERVIEW?'sel':''}" data-i="${OVERVIEW}">Overview</button>
+    <div class="nav-sep"></div><div class="nav-h">Dashboards</div>` + DATA.map((g,i) =>
+    `<button class="nav-item ${i===state.game?'sel':''}" data-i="${i}">${esc(g.nav || g.title)}</button>`).join('');
+  $('nav').querySelectorAll('.nav-item').forEach(b =>
+    b.onclick = () => go(+b.dataset.i, 0));
+}
+
+/* ---------- dashboard header ---------- */
+function drawHead(){
+  if (state.game === OVERVIEW){
+    const versions = new Set(DATA.flatMap(g => (g.versions || []).map(v => v.label)));
+    $('head').innerHTML = `
+      <div class="kicker">Overview</div>
+      <h1>Consolidated results</h1>
+      <p class="lede">Every dashboard's rubric checks added up per version: ${DATA.length} dashboards · ${versions.size} versions.
+        Click a dashboard or a score to open it.</p>`;
+    return;
+  }
+  const g = DATA[state.game];
+  if (!g){ $('head').innerHTML = '<h1>No dashboards yet</h1>'; return; }
+  $('head').innerHTML = `
+    <div class="kicker">Dashboard ${state.game + 1} of ${DATA.length}</div>
+    <h1>${esc(g.title)}</h1>
+    ${g.description ? `<div class="prompt">
+      <div class="label">Prompt</div>
+      <p class="ptext ${state.open?'open':''}" id="ptext">${esc(g.description)}</p>
+      <button class="link" id="expand" hidden>${state.open ? 'Show less' : 'Show full prompt'}</button>
+    </div>` : ''}`;
+  const p = $('ptext'), ex = $('expand');
+  if (!p) return;
+  ex.hidden = !state.open && p.scrollHeight <= p.clientHeight + 1;   // short prompt: no toggle
+  ex.onclick = () => { state.open = !state.open; drawHead(); };
+}
+
+/* ---------- version tabs ---------- */
+function drawCards(){
+  const g = DATA[state.game];
+  if (!g){ $('cards').innerHTML = ''; return; }
+  $('cards').innerHTML = (g.versions || []).map((v,i) => {
+    const s = score(g,v), color = tone(ratio(s));
+    return `<button class="tab ${i===state.col?'sel':''}" role="tab" aria-selected="${i===state.col}" data-k="${i}">
+      ${esc(v.label)}<span class="sc" style="color:${color}" title="Checks passed">${scoreText(s)}</span></button>`;
+  }).join('');
+  $('cards').querySelectorAll('.tab').forEach(b =>
+    b.onclick = () => go(state.game, +b.dataset.k));
+}
+
+/* ---------- stage ---------- */
+function drawStage(){
+  const v = cur(), t = trajectoryOf();
+  $('stagebar').innerHTML = !v ? '' : `
+    <div class="stage-id"><b>${esc(v.label)}</b><span>${esc(v.file || 'No file registered')}</span></div>
+    <div class="tools">
+      ${v.notes ? `<button class="tool text ${state.notes?'on':''}" id="notesbtn" aria-expanded="${state.notes}">${svg('notes')}Notes</button>` : ''}
+      <button class="tool text" id="traj" aria-label="Download trajectory"
+              title="${esc(t ? `Download trajectory (${fileName(t)})` : 'No trajectory for this version')}" ${t ? '' : 'disabled'}>${svg('dl')}Trajectory</button>
+      <button class="tool" id="reload" aria-label="Reload dashboard" title="Reload (R)">${svg('reload')}</button>
+      <button class="tool" id="full" aria-label="Open full screen" title="Full screen (F)">${svg('full')}</button>
+    </div>`;
+  if (!v) return;
+  const nb = $('notesbtn');
+  if (nb) nb.onclick = () => { state.notes = !state.notes; drawStage(); };
+  if (t) $('traj').onclick = downloadTrajectory;
+  $('reload').onclick = loadDashboard;
+  $('full').onclick = openFull;
+
+  const notes = $('notes');
+  notes.hidden = !(v.notes && state.notes);
+  notes.innerHTML = notes.hidden ? '' : md(v.notes);
+}
+
+function emptyStage(title, sub){
+  $('holder').innerHTML = `<div class="empty">${svg('cube', 40, 1.4, 'style="color:#8C8B85"')}
+    <b>${title}</b><span>${sub}</span></div>`;
+}
+
+let loadToken = 0, loadedKey = null;                 // ignore errors from a dashboard we already left
+function loadDashboard(){
+  const holder = $('holder');
+  const v = cur(), token = ++loadToken;
+  loadedKey = state.game + ':' + state.col;
+  if (!v || !v.file){
+    emptyStage('No dashboard here yet', 'Run <code>build_dashboards.py</code> to fill <code>dashboards/</code> and <code>dashboards.js</code>');
+    return;
+  }
+  holder.innerHTML = '';
+
+  const f = document.createElement('iframe');          // fresh node = clean restart
+  f.title = v.label || 'Dashboard';
+  // Dashboards load by URL and keep their origin, so any files they reference by relative path still load.
+  f.setAttribute('sandbox','allow-scripts allow-same-origin allow-pointer-lock allow-modals allow-forms');
+  f.setAttribute('allow','fullscreen; xr-spatial-tracking; gamepad');
+  f.src = v.file;
+  f.className = 'scaled';
+  holder.appendChild(f);
+}
+
+// Renders 900px tall and as wide as the box's shape needs (1440px at 16:10), then scales to the box,
+// so it always fills the box: on short windows the box gets wider than 16:9 and the frame widens with it.
+const FRAME_H = 900;                                   // keep in sync with .holder iframe.scaled
+function fitFrame(){
+  const h = $('holder');
+  if (!h.clientHeight) return;
+  const fit = h.clientHeight / FRAME_H;
+  h.style.setProperty('--fit', fit);
+  h.style.setProperty('--fw', h.clientWidth / fit + 'px');
+}
+new ResizeObserver(fitFrame).observe($('holder'));
+
+function openFull(){
+  const v = cur();
+  if (!v || !v.file) return;
+  const w = window.open(v.file, '_blank');
+  if (!w) alert('Your browser blocked the new tab. Allow pop-ups for this page and try again.');
+}
+
+/* ---------- notes (markdown) ---------- */
+function md(src){
+  const inline = s => esc(s)
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/(^|[\s(])\*([^*]+)\*/g,'$1<em>$2</em>')
+    .replace(/`([^`]+)`/g,'<code>$1</code>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+  const out = []; let list = null, quote = [];
+  const closeList  = () => { if (list){ out.push(`</${list}>`); list = null; } };
+  const closeQuote = () => { if (quote.length){ out.push(`<blockquote>${inline(quote.join('\n'))}</blockquote>`); quote = []; } };
+  src.replace(/\r/g,'').split('\n').forEach(line => {
+    const q = /^>\s?(.*)/.exec(line);
+    if (q){ closeList(); quote.push(q[1]); return; }
+    closeQuote();
+    if (/^---+\s*$/.test(line)){ closeList(); out.push('<hr>'); return; }
+    const h = /^(#{1,4})\s+(.*)/.exec(line);
+    if (h){ closeList(); out.push(`<h${h[1].length}>${inline(h[2])}</h${h[1].length}>`); return; }
+    const ol = /^\s*\d+\.\s+(.*)/.exec(line), ul = /^\s*[-*]\s+(.*)/.exec(line);
+    if (ol || ul){
+      const want = ol ? 'ol' : 'ul';
+      if (list !== want){ closeList(); out.push(`<${want}>`); list = want; }
+      out.push(`<li>${inline((ol || ul)[1])}</li>`); return;
+    }
+    if (!line.trim()){ closeList(); return; }
+    if (list) out.push(`<li>${inline(line.trim())}</li>`);
+    else out.push(`<p>${inline(line)}</p>`);
+  });
+  closeList(); closeQuote();
+  return out.join('\n');
+}
+
+/* ---------- rubric ---------- */
+function drawRubric(){
+  const el = $('rubric');
+  const g = DATA[state.game];
+  if (!g || !(g.versions||[]).length || !(g.questions||[]).length){ el.innerHTML = ''; return; }
+  const vs = g.versions, scores = vs.map(v => score(g,v)), v = vs[state.col];
+  const cols = `style="grid-template-columns:minmax(0,1fr) repeat(${vs.length},120px)"`;
+  const on = i => i === state.col ? 'on' : '';
+
+  let h = `<div class="grid hrow" ${cols}><span class="th">Criterion</span>` +
+          vs.map((v,i) => `<span class="th ${on(i)}">${esc(v.label)}</span>`).join('') + `</div>`;
+
+  let tier = null;
+  g.questions.forEach((q,r) => {
+    if (q.tier !== tier){ tier = q.tier; h += `<div class="tier">${esc(tier)}</div>`; }
+    const m = /^\*\*(.+?)\*\*\s*[—–-]\s*([\s\S]*)$/.exec(String(q.q ?? ''));
+    // A failure on the selected version shows the evaluator's reason under the criterion;
+    // a ✗ in another column shows it on hover, and a click switches to that version.
+    const why = v?.marks?.[r] === false ? v.comments?.[r] : null;
+    h += `<div class="grid r" id="crit-${r}" ${cols}><div class="crit">
+        <div class="q">${m ? `<span class="area">${esc(m[1])}</span>` : ''}
+          <span class="desc">${named(m ? m[2] : q.q)}${q.rating ? ' (1–5)' : ''}</span></div>
+        ${why ? `<details class="why"><summary>${svg('alert', 14, 2)}Why it failed · ${esc(v.label)}</summary>
+          <p>${esc(why)}</p></details>` : ''}
+      </div>` +
+      vs.map((w,i) => {
+        const mk = (w.marks || [])[r];
+        let c;
+        if (q.rating) c = typeof mk === 'number' ? `<span class="num">${mk}<small> /5</small></span>` : `<span class="u" title="Not scored">–</span>`;
+        else if (mk === true) c = `<span class="dot y" title="Passed">${svg('check', 14, 2.6)}</span>`;
+        else if (mk === false){
+          const note = w.comments?.[r], tip = `${w.label} failed${note ? ': ' + note : ''}`;
+          c = `<button class="dot n" data-k="${i}" title="${esc(tip)}" aria-label="${esc(tip)}">${svg('x', 12, 3)}</button>`;
+        }
+        else c = `<span class="u" title="Not scored">–</span>`;
+        return `<div class="cell ${on(i)}">${c}</div>`;
+      }).join('') + `</div>`;
+  });
+
+  const total = (label, get, strong) =>
+    `<div class="grid r ${strong ? 'strong' : ''}" ${cols}><span class="tot-l">${esc(label)}</span>` +
+    scores.map((s,i) => `<span class="tot-v ${on(i)}">${esc(get(s))}</span>`).join('') + `</div>`;
+  h += `<div class="tier">Totals</div>`;
+  [...new Set(g.questions.filter(q => !q.rating).map(q => q.tier))].forEach(t =>
+    h += total(t.split('—')[0].trim() + ' checks', s => s.scored && s.tiers[t] ? s.tiers[t][0] + '/' + s.tiers[t][1] : '—'));
+  h += total('All checks passed', scoreText, true);
+  if (g.questions.some(q => q.rating))
+    h += total('Rating average', s => s.avg === null ? '—' : s.avg.toFixed(2), true);
+
+  el.innerHTML = `
+    <div class="rubric-h"><h2>Rubric</h2><span>${g.questions.length} criteria · same rubric for every version</span></div>
+    <div class="table"><div class="table-in">${h}</div></div>
+    <div class="legend">
+      <span><i style="background:var(--pass)"></i>Passed</span>
+      <span><i style="background:#E9A091"></i>Failed — click to see why</span>
+      <span><b style="font-family:var(--mono);font-weight:400">1–5</b>Rated</span>
+      <span>–&nbsp;Not scored</span>
+    </div>`;
+  el.querySelectorAll('button.dot.n').forEach(b =>
+    b.onclick = () => go(state.game, +b.dataset.k));
+}
+
+/* ---------- design rationale ----------
+   The designer's reasoning (rationale.js): Argon's problem → the redesign's approach, then one card
+   per decision. A card's footer names the rubric checks that cover it (links to their rows below)
+   or marks it as designer judgment. Pass/fail detail stays in the rubric table. */
+const critName = q => /^\*\*.+?\*\*\s*—\s*(.+?)\s+—\s/.exec(String(q.q ?? ''))?.[1] || null;
+function drawRationale(){
+  const el = $('rationale'), g = DATA[state.game], R = (window.RATIONALE || {})[g?.id];
+  if (!g || !R){ el.innerHTML = ''; return; }
+  const vs = g.versions || [], before = vs[0]?.label || 'Before', after = vs[vs.length - 1]?.label || 'After';
+  const idx = name => g.questions.findIndex(q => critName(q) === name);
+  const backed = R.decisions.filter(d => (d.rubrics || []).some(n => idx(n) >= 0)).length;
+
+  const cards = R.decisions.map((d, i) => {
+    const links = (d.rubrics || []).map(n => [n, idx(n)]).filter(([, r]) => r >= 0)
+      .map(([n, r]) => `<button data-r="${r}" title="Show in the rubric">${esc(n)}</button>`).join('');
+    const foot = (links ? `<span>Checked by</span>${links}` : '') +
+      (d.judgment ? `<span class="judg" title="Not measured by the rubric">Designer judgment: ${esc(d.judgment.charAt(0).toLowerCase() + d.judgment.slice(1))}</span>`
+                  : !links ? `<span class="judg">Designer judgment · not in the rubric</span>` : '');
+    return `<article class="card">
+      <div class="card-h"><span class="n">${String(i + 1).padStart(2, '0')}</span><h3>${esc(d.title)}</h3></div>
+      <div class="ft">
+        ${d.from ? `<span class="from"><i>${esc(before)}</i>${esc(d.from)}</span>` : ''}
+        <span class="to"><i>Redesign</i>${esc(d.to)}</span>
+      </div>
+      <p>${esc(d.why)}</p>
+      <div class="card-f">${foot}</div>
+    </article>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="rubric-h"><h2>Design rationale</h2>
+      <span>${R.decisions.length} decisions · ${backed} checked by the rubric · from the redesign’s designer</span></div>
+    <div class="ba">
+      <div class="ba-side before"><span class="ba-k">${esc(before)} · the problem</span><p>${esc(R.problem)}</p></div>
+      <div class="ba-arrow">${svg('arrow', 20, 2)}</div>
+      <div class="ba-side after"><span class="ba-k">${esc(after)} · the approach</span><p>${esc(R.approach)}</p></div>
+    </div>
+    <div class="cards">${cards}</div>`;
+  el.querySelectorAll('[data-r]').forEach(b => b.onclick = () => {
+    const row = $('crit-' + b.dataset.r);
+    if (!row) return;
+    row.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+    row.classList.remove('flash'); void row.offsetWidth; row.classList.add('flash');
+  });
+}
+
+/* ---------- references (after the rubric) ---------- */
+function drawRefs(){
+  const el = $('refs'), r = DATA[state.game]?.references;
+  if (!r || !(r.notes || r.image || r.video)){ el.innerHTML = ''; return; }
+  const ext = 'target="_blank" rel="noopener"';
+  el.innerHTML = `
+    <div class="rubric-h"><h2>References</h2><span>What inspired the Revelo Redesign · from its designer</span></div>
+    <div class="refs-notes">
+        ${r.notes ? `<p>${esc(r.notes)}</p>` : ''}
+        <div class="refs-links">
+          ${r.image ? `<a href="${esc(r.image)}" ${ext}>${svg('image')}Reference image</a>` : ''}
+          ${r.video ? `<a href="${esc(r.video)}" ${ext}>${svg('play')}Screen recording</a>` : ''}
+        </div>
+    </div>`;
+}
+
+/* ---------- overview: all samples, added up per version ----------
+   Versions are matched across samples by label, rubric tiers by name. */
+function consolidate(){
+  const labels = [...new Set(DATA.flatMap(g => (g.versions || []).map(v => v.label)))];
+  const tiers  = [...new Set(DATA.flatMap(g => (g.questions || []).filter(q => !q.rating).map(q => q.tier)))];
+  const per = labels.map(label => {
+    const out = { label, passed:0, total:0, scored:false, tiers:{}, ratings:[] };
+    DATA.forEach(g => {
+      const v = (g.versions || []).find(v => v.label === label);
+      const s = v && score(g, v);
+      if (!s?.scored) return;
+      out.scored = true; out.passed += s.passed; out.total += s.total; out.ratings.push(...s.ratings);
+      Object.entries(s.tiers).forEach(([t,[p,n]]) => { const a = out.tiers[t] ||= [0,0]; a[0] += p; a[1] += n; });
+    });
+    out.avg = out.ratings.length ? out.ratings.reduce((a,b) => a+b, 0) / out.ratings.length : null;
+    return out;
+  });
+  return { labels, tiers, per };
+}
+
+function drawCover(){
+  const c = consolidate();
+  const cols = `style="grid-template-columns:minmax(0,1fr) repeat(${c.labels.length},120px)"`;
+  const hrow = first => `<div class="grid hrow" ${cols}><span class="th">${first}</span>` +
+    c.labels.map(l => `<span class="th">${esc(l)}</span>`).join('') + `</div>`;
+  const frac = ([p, n]) => n ? `${p}/${n}<span class="pct">${pct(p, n)}</span>` : '—';
+  const name = g => esc(g.nav || g.title);
+
+  const tiles = c.per.map(p => {
+    const r = ratio(p);
+    return `<div class="tile"><span class="tile-l">${esc(p.label)}</span>
+      <span class="tile-v" style="color:${tone(r)}">${r === null ? '—' : pct(p.passed, p.total)}</span>
+      <div class="meter"><i style="width:${(r ?? 0) * 100}%;background:${tone(r)}"></i></div>
+      <span class="tile-s">${p.scored ? `${p.passed} of ${p.total} checks passed · ${p.total - p.passed} failed` : 'Not scored'}</span>
+    </div>`;
+  }).join('');
+
+  let tiers = hrow('Rubric tier');
+  c.tiers.forEach(t => tiers += `<div class="grid r" ${cols}><span class="tot-l">${esc(t.split('—')[0].trim())}</span>` +
+    c.per.map(p => `<span class="tot-v">${p.tiers[t] ? frac(p.tiers[t]) : '—'}</span>`).join('') + `</div>`);
+  tiers += `<div class="grid r strong" ${cols}><span class="tot-l">All checks passed</span>` +
+    c.per.map(p => `<span class="tot-v">${p.scored ? frac([p.passed, p.total]) : '—'}</span>`).join('') + `</div>`;
+  if (c.per.some(p => p.avg !== null))
+    tiers += `<div class="grid r strong" ${cols}><span class="tot-l">Rating average</span>` +
+      c.per.map(p => `<span class="tot-v">${p.avg === null ? '—' : p.avg.toFixed(2)}</span>`).join('') + `</div>`;
+
+  let samples = hrow('Dashboard');
+  DATA.forEach((g,gi) => {
+    samples += `<div class="grid r" ${cols}>
+      <button class="crit pick" data-g="${gi}" data-k="0"><span class="desc">${name(g)}</span>${g.title && g.title !== g.nav ? `<small>${esc(g.title)}</small>` : ''}</button>` +
+      c.labels.map(l => {
+        const k = (g.versions || []).findIndex(v => v.label === l);
+        if (k < 0) return `<div class="cell"><span class="u" title="No such version">–</span></div>`;
+        const s = score(g, g.versions[k]);
+        return `<div class="cell"><button class="score pick" data-g="${gi}" data-k="${k}" style="color:${tone(ratio(s))}"
+          title="Open ${name(g)} · ${esc(l)}">${scoreText(s)}</button></div>`;
+      }).join('') + `</div>`;
+  });
+
+  $('cover').innerHTML = `
+    <section class="sec">
+      <div class="rubric-h"><h2>By version</h2><span>All dashboards combined</span></div>
+      <div class="tiles">${tiles}</div>
+    </section>
+    <section class="sec">
+      <div class="rubric-h"><h2>By dashboard</h2><span>Checks passed per version</span></div>
+      <div class="table"><div class="table-in">${samples}</div></div>
+    </section>
+    <section class="sec">
+      <div class="rubric-h"><h2>By rubric tier</h2><span>Checks passed, summed over every dashboard</span></div>
+      <div class="table"><div class="table-in">${tiers}</div></div>
+    </section>`;
+  $('cover').querySelectorAll('.pick').forEach(b =>
+    b.onclick = () => go(+b.dataset.g, +b.dataset.k));
+}
+
+/* ---------- trajectory download ----------
+   A version's own `trajectory` wins; otherwise the dashboard-level one is used. */
+const trajectoryOf = () => cur()?.trajectory || DATA[state.game]?.trajectory || null;
+const fileName = p => decodeURIComponent(String(p).split(/[?#]/)[0].split('/').pop()) || 'trajectory';
+async function downloadTrajectory(){
+  const t = trajectoryOf();
+  if (!t) return;
+  const a = document.createElement('a');
+  a.download = fileName(t);
+  try {
+    // Fetching first makes cross-origin files download instead of opening in the tab.
+    const res = await fetch(t);
+    if (!res.ok) throw new Error(res.status);
+    a.href = URL.createObjectURL(await res.blob());
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  } catch(e) {
+    a.href = t;                                          // file:// or blocked fetch: let the browser handle it
+  }
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+/* ---------- state ---------- */
+function go(game, col){
+  if (game !== state.game){ state.open = false; }
+  state.game = game; state.col = col; state.notes = false;
+  drawAll();
+}
+function drawAll(){
+  const ov = state.game === OVERVIEW;
+  $('cover').hidden = !ov;
+  $('cards').hidden = $('stage').hidden = $('rationale').hidden = $('rubric').hidden = $('refs').hidden = ov;
+  drawNav(); drawHead();
+  if (ov){
+    drawCover();
+    if (loadedKey !== null){ loadToken++; loadedKey = null; $('holder').innerHTML = ''; }   // stop the running dashboard
+    return;
+  }
+  drawCards(); drawStage(); drawRationale(); drawRubric(); drawRefs();
+  // only a different dashboard/version reloads the stage; toggling notes or the prompt doesn't
+  if (loadedKey !== state.game + ':' + state.col) loadDashboard();
+}
+addEventListener('resize', () => { if (!state.open) drawHead(); });
+document.fonts?.ready.then(drawHead);                  // re-measure the prompt once the web font is in
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && state.notes){ state.notes = false; drawStage(); return; }
+  if (/INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
+  const g = DATA[state.game];                            // undefined on the overview
+  if (e.key === 'ArrowDown' && state.game < DATA.length-1)     go(state.game + 1, 0);
+  else if (e.key === 'ArrowUp' && state.game > OVERVIEW)       go(state.game - 1, 0);
+  else if (e.key.toLowerCase() === 'm') toggleNav();
+  else if (!g) return;
+  else if (e.key >= '1' && e.key <= '9' && g.versions?.[+e.key-1]) go(state.game, +e.key-1);
+  else if (e.key.toLowerCase() === 'r') loadDashboard();
+  else if (e.key.toLowerCase() === 'f') openFull();
+  else return;
+  e.preventDefault();
+});
+
+/* ---------- collapsible side menu (remembered per browser) ---------- */
+function toggleNav(collapsed = !$('layout').classList.contains('collapsed')){
+  $('layout').classList.toggle('collapsed', collapsed);
+  const b = $('navtoggle'), label = collapsed ? 'Show dashboard menu' : 'Hide dashboard menu';
+  b.setAttribute('aria-expanded', !collapsed);
+  b.setAttribute('aria-label', label);
+  b.title = label + ' (M)';
+  try { localStorage.setItem('navCollapsed', collapsed ? '1' : ''); } catch(e) {}
+}
+$('navtoggle').innerHTML = svg('side', 18);
+$('navtoggle').onclick = () => toggleNav();
+try { if (localStorage.getItem('navCollapsed')) toggleNav(true); } catch(e) {}
+
+drawAll();
+</script>
+</body>
+</html>
