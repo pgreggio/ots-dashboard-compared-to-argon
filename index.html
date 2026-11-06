@@ -387,7 +387,7 @@ function drawCards(){
 function drawStage(){
   const v = cur(), t = trajectoryOf();
   $('stagebar').innerHTML = !v ? '' : `
-    <div class="stage-id"><b>${esc(v.label)}</b><span>${esc(v.file || 'No file registered')}</span></div>
+    <div class="stage-id"><span>${esc(v.file || 'No file registered')}</span></div>
     <div class="tools">
       ${v.notes ? `<button class="tool text ${state.notes?'on':''}" id="notesbtn" aria-expanded="${state.notes}">${svg('notes')}Notes</button>` : ''}
       <button class="tool text" id="traj" aria-label="Download trajectory"
