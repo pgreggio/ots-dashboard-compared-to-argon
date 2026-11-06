@@ -555,7 +555,6 @@ function drawRationale(){
   if (!g || !R){ el.innerHTML = ''; return; }
   const vs = g.versions || [], before = vs[0]?.label || 'Before', after = vs[vs.length - 1]?.label || 'After';
   const idx = name => g.questions.findIndex(q => critName(q) === name);
-  const backed = R.decisions.filter(d => (d.rubrics || []).some(n => idx(n) >= 0)).length;
 
   const cards = R.decisions.map((d, i) => {
     const links = (d.rubrics || []).map(n => [n, idx(n)]).filter(([, r]) => r >= 0)
@@ -575,8 +574,7 @@ function drawRationale(){
   }).join('');
 
   el.innerHTML = `
-    <div class="rubric-h"><h2>Design rationale</h2>
-      <span>${R.decisions.length} decisions · ${backed} checked by the rubric · from the redesign’s designer</span></div>
+    <div class="rubric-h"><h2>Design rationale</h2></div>
     <div class="ba">
       <div class="ba-side before"><span class="ba-k">${esc(before)} · the problem</span><p>${esc(R.problem)}</p></div>
       <div class="ba-arrow">${svg('arrow', 20, 2)}</div>
